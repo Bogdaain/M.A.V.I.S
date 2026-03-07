@@ -14,7 +14,7 @@ pygame.mixer.init()
 conversation_history = []
 
 SYSTEM_PROMPT = """
-You are M.A.V.I.S, a Modular Artificial Voice Intelligence System.
+You are M.A.V.I.S, a Mostly Autonomous, Very Intelligent System.
 You are a highly intelligent, efficient, and loyal personal assistant.
 You are formal, precise, and occasionally witty.
 Always address the user as "sir".
@@ -87,3 +87,4 @@ while True:
     response = ask_mavis(user_input)
     print(f"M.A.V.I.S: {response}\n")
     asyncio.run(speak(response))
+
