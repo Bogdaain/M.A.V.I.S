@@ -1,3 +1,4 @@
+from httpx import stream
 import ollama
 import edge_tts
 import asyncio
@@ -5,11 +6,10 @@ import pygame
 import sounddevice as sd
 import scipy.io.wavfile
 import faster_whisper
-import threading
-import keyboard
 import numpy as np
 
 pygame.mixer.init()
+whisper_model = faster_whisper.WhisperModel("medium", device="cuda", compute_type="float16")
 
 conversation_history = []
 
@@ -18,7 +18,7 @@ You are M.A.V.I.S, a Mostly Autonomous, Very Intelligent System.
 You are a highly intelligent, efficient, and loyal personal assistant.
 You are formal, precise, and occasionally witty.
 Always address the user as "sir".
-Keep responses concise and clear.
+Keep responses concise, clear and under 4 sentences unless the user explicitly asks for detail.
 """
 
 def ask_mavis(user_input):
@@ -40,10 +40,12 @@ def ask_mavis(user_input):
     })
 
     return reply
+
 async def speak(text):
     voice = "en-GB-RyanNeural"
     audio_file = "mavis_temp_audio.mp3"
 
+    pygame.mixer.music.unload()
     communicate = edge_tts.Communicate(text, voice, rate="+30%")
     await communicate.save(audio_file)
 
@@ -69,7 +71,7 @@ def listen():
     print(f"Audio shape: {audio_data.shape}")
     print(f"Max amplitude: {np.max(np.abs(audio_data))}")
 
-    model = faster_whisper.WhisperModel("small", device="cpu")
+    model = whisper_model
     segments, _ = model.transcribe(input_audio_file, language="en")
     text = " ".join([segment.text for segment in segments])
 
@@ -78,13 +80,14 @@ def listen():
 
 print("M.A.V.I.S online. Type 'quit' to exit.\n")
 
+
+
 while True:
-    input("Press Enter to speak...")
-    user_input = listen()
-    if user_input.lower() == "quit":
+    command = input("Press Enter to speak or type 'quit' to exit: ")
+    if command.lower() == "quit":
         print("M.A.V.I.S shutting down.")
         break
+    user_input = listen()
     response = ask_mavis(user_input)
     print(f"M.A.V.I.S: {response}\n")
     asyncio.run(speak(response))
-
