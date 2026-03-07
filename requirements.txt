@@ -1,0 +1,8 @@
+ollama
+edge-tts
+pygame
+sounddevice
+scipy
+faster-whisper
+keyboard
+numpy
