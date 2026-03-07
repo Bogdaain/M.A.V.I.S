@@ -29,10 +29,9 @@ Built from scratch in Python, it runs entirely on your own hardware with no clou
 2. Create a virtual environment: `python -m venv venv`
 3. Activate it: `venv\Scripts\activate`
 4. Install dependencies: `pip install -r requirements.txt`
-5. Run: `python mavis.py`
 
 ## Usage
-- Run `mavis.py`
+- Run `start_mavis.bat`
 - Press **Enter** to start speaking
 - Press **Space** to stop recording
 - M.A.V.I.S will transcribe, think, and respond
