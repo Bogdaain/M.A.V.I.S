@@ -40,5 +40,6 @@ Built from scratch in Python, it runs entirely on your own hardware with no clou
 - [ ] Wake word detection
 - [ ] Persistent memory between sessions
 - [ ] System controls (volume, apps, screenshots)
-- [ ] Timers and reminders
+- [x] Timers and reminders
 - [ ] Web search capability
+
