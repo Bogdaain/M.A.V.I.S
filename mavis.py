@@ -9,6 +9,7 @@ import scipy.io.wavfile
 import faster_whisper
 import numpy as np
 import json
+import os
 
 pygame.mixer.init()
 whisper_model = faster_whisper.WhisperModel("small", device="cuda", compute_type="float16")
@@ -28,23 +29,55 @@ If the user is asking for a timer or reminder, return:
 If it's a normal conversation, return:
 {"type": "conversation"}"""
 
+def load_memory():
+    if(os.path.exists("memory.json")):
+        return json.loads(open("memory.json", "r").read())
+    else:
+        return []
+    
+def save_memory(memory):
+    with open("memory.json", "w") as f:
+        f.write(json.dumps(memory))
+
+def update_memory(user_input, mavis_response):
+    memory_prompt = """Given this exchange, extract any personal facts worth remembering about the user. If nothing is worth remembering, respond with exactly: NOTHING.
+    Otherwise respond with a single short sentence starting with 'User'.
+    Only save facts that would still be relevant in future sessions,
+    such as the user's name, location, job, preferences, important personal details, conversational context, or questions.
+    Ignore anything temporary."""
+
+    exchange = f"User said: {user_input}\nMavis replied: {mavis_response}"
+    result = ollama.chat(
+        model="mistral",
+        messages=[{"role": "system", "content": memory_prompt}, 
+                  {"role": "user", "content": exchange}]
+    )
+    
+    new_memory = result["message"]["content"].strip()
+
+    if "NOTHING" not in new_memory.upper():
+        current_memory = load_memory()
+        if new_memory not in current_memory:
+            current_memory.append(new_memory)
+            save_memory(current_memory)
+
 def ask_mavis(user_input):
-    conversation_history.append({
-        "role": "user",
-        "content": user_input
-    })
+
+    memory = load_memory()
+    memory_text = "\n".join(memory) if memory else "No memory yet."
+
+    dynamic_prompt = SYSTEM_PROMPT + f"\n What you remember about the user:\n{memory_text}"
+
+    conversation_history.append({"role": "user", "content": user_input})
 
     response = ollama.chat(
         model="mistral",
-        messages=[{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history
+        messages=[{"role": "system", "content": dynamic_prompt}] + conversation_history
     )
 
     reply = response["message"]["content"]
 
-    conversation_history.append({
-        "role": "assistant",
-        "content": reply
-    })
+    conversation_history.append({"role": "assistant", "content": reply})
 
     return reply
 
@@ -106,7 +139,6 @@ def listen():
 print("M.A.V.I.S online. Type 'quit' to exit.\n")
 
 
-
 while True:
     command = input("Press Enter to speak...")
     if command.lower() == "quit":
@@ -119,5 +151,6 @@ while True:
         timer(response["seconds"], response["message"])
     else:
         response = ask_mavis(user_input)
+        update_memory(user_input, response)
         print(f"M.A.V.I.S: {response}\n")
         asyncio.run(speak(response))
