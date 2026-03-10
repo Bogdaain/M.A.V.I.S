@@ -4,5 +4,5 @@ pygame
 sounddevice
 scipy
 faster-whisper
-keyboard
 numpy
+customtkinter
