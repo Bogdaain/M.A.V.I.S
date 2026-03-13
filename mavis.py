@@ -1,4 +1,3 @@
-from httpx import stream
 import threading
 import ollama
 import edge_tts
@@ -30,14 +29,14 @@ If it's a normal conversation, return:
 {"type": "conversation"}"""
 
 def load_memory():
-    if(os.path.exists("memory.json")):
-        return json.loads(open("memory.json", "r").read())
-    else:
-        return []
-    
+    if os.path.exists("memory.json"):
+        with open("memory.json", "r") as f:
+            return json.load(f)
+    return []
+
 def save_memory(memory):
     with open("memory.json", "w") as f:
-        f.write(json.dumps(memory))
+        json.dump(memory, f)
 
 def update_memory(user_input, mavis_response):
     memory_prompt = """Given this exchange, extract any personal facts worth remembering about the user. If nothing is worth remembering, respond with exactly: NOTHING.
@@ -61,6 +60,11 @@ def update_memory(user_input, mavis_response):
             current_memory.append(new_memory)
             save_memory(current_memory)
 
+def update_memory_async(user_input, mavis_response):
+    threading.Thread(target=update_memory, args=(user_input, mavis_response)).start()
+
+MAX_HISTORY = 20
+
 def ask_mavis(user_input):
 
     memory = load_memory()
@@ -78,6 +82,10 @@ def ask_mavis(user_input):
     reply = response["message"]["content"]
 
     conversation_history.append({"role": "assistant", "content": reply})
+
+    # Trim history to avoid unbounded growth and slow responses
+    if len(conversation_history) > MAX_HISTORY:
+        conversation_history[:] = conversation_history[-MAX_HISTORY:]
 
     return reply
 
@@ -110,14 +118,14 @@ async def speak(text):
     pygame.mixer.music.load(audio_file)
     pygame.mixer.music.play()
 
+    clock = pygame.time.Clock()
     while pygame.mixer.music.get_busy():
-        pygame.time.Clock().tick(10)
+        clock.tick(10)
 
 def listen():
     print("Listening... Press SPACE to stop")
 
     samplerate = 16000
-    max_duration = 15
     input_audio_file = "input_audio.wav"
 
     recording = sd.rec(5 * 16000, samplerate=16000, channels=1, dtype="int16", device=2)
@@ -125,12 +133,10 @@ def listen():
     audio_data = recording
     scipy.io.wavfile.write(input_audio_file, samplerate, audio_data)
 
-    scipy.io.wavfile.write(input_audio_file, samplerate, audio_data)
     print(f"Audio shape: {audio_data.shape}")
     print(f"Max amplitude: {np.max(np.abs(audio_data))}")
 
-    model = whisper_model
-    segments, _ = model.transcribe(input_audio_file, language="en", initial_prompt="Mavis is a personal AI assistant.")
+    segments, _ = whisper_model.transcribe(input_audio_file, language="en", initial_prompt="Mavis is a personal AI assistant.")
     text = " ".join([segment.text for segment in segments])
 
     print(f"You: {text}")
@@ -151,6 +157,6 @@ while True:
         timer(response["seconds"], response["message"])
     else:
         response = ask_mavis(user_input)
-        update_memory(user_input, response)
+        update_memory_async(user_input, response)
         print(f"M.A.V.I.S: {response}\n")
         asyncio.run(speak(response))
